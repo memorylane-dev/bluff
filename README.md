@@ -20,6 +20,11 @@ npm run dev
 2. SQL editor에서 `supabase/migrations` 안의 SQL 파일을 번호 순서대로 실행한다.
 3. Vercel 프로젝트 환경 변수에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`를 등록한다.
 
+## 게임 데이터 초기화
+
+테스트 중 생긴 기존 방과 라운드 데이터를 모두 지우려면 Supabase SQL editor에서
+`supabase/reset_game_data.sql`을 실행한다.
+
 ## 배포
 
 ```bash
