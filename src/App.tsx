@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dice5,
   DoorOpen,
@@ -26,6 +26,10 @@ import {
 } from './lib/game';
 
 type PendingAction = 'create' | 'join' | 'rooms' | 'start' | 'bid' | 'challenge' | 'refresh' | null;
+type SelectedBidDraft = {
+  rank: number;
+  contextKey: string;
+};
 
 function App() {
   const [session, setSession] = useState<Session | null>(() => loadSession());
@@ -33,9 +37,11 @@ function App() {
   const [activeRooms, setActiveRooms] = useState<ActiveRoom[]>([]);
   const [playerName, setPlayerName] = useState('');
   const [selectedRoomCode, setSelectedRoomCode] = useState<string | null>(null);
-  const [selectedRank, setSelectedRank] = useState<number | null>(null);
+  const [selectedBidDraft, setSelectedBidDraft] = useState<SelectedBidDraft | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
+  const previousBidContextKeyRef = useRef<string | null>(null);
+  const previousHandAnimationKeyRef = useRef<string | null>(null);
 
   const totalDice = useMemo(
     () =>
@@ -50,9 +56,21 @@ function App() {
     return generateBidOptions(totalDice, currentRank);
   }, [state?.round?.current_bid?.rank, totalDice]);
 
-  const selectedBid = bidOptions.find((option) => option.rank === selectedRank) ?? null;
+  const sortedOwnHand = useMemo(
+    () => [...(state?.own_hand ?? [])].sort((a, b) => a - b),
+    [state?.own_hand],
+  );
   const me = state?.me ?? null;
   const currentBid = state?.round?.current_bid ?? null;
+  const bidContextKey = `${state?.round?.id ?? 'no-round'}:${currentBid?.rank ?? 0}:${totalDice}`;
+  const selectedRank = selectedBidDraft?.contextKey === bidContextKey ? selectedBidDraft.rank : null;
+  const selectedBid = selectedRank !== null ? bidOptions.find((option) => option.rank === selectedRank) ?? null : null;
+  const handAnimationKey =
+    state?.game.status === 'playing' && state.round && sortedOwnHand.length > 0
+      ? `${state.round.id}:${sortedOwnHand.join(',')}`
+      : null;
+  const [rollingHandKey, setRollingHandKey] = useState<string | null>(null);
+  const isRollingHand = Boolean(handAnimationKey && rollingHandKey === handAnimationKey);
   const currentTurnPlayer = state?.players.find(
     (player) => player.id === state.game.current_turn_player_id,
   );
@@ -172,10 +190,43 @@ function App() {
   }, [activeRooms, selectedRoomCode]);
 
   useEffect(() => {
-    if (selectedRank && !bidOptions.some((option) => option.rank === selectedRank)) {
-      setSelectedRank(null);
+    if (selectedRank !== null && !bidOptions.some((option) => option.rank === selectedRank)) {
+      setSelectedBidDraft(null);
     }
   }, [bidOptions, selectedRank]);
+
+  useEffect(() => {
+    if (previousBidContextKeyRef.current === null) {
+      previousBidContextKeyRef.current = bidContextKey;
+      return;
+    }
+
+    if (previousBidContextKeyRef.current !== bidContextKey) {
+      previousBidContextKeyRef.current = bidContextKey;
+      setSelectedBidDraft(null);
+    }
+  }, [bidContextKey]);
+
+  useEffect(() => {
+    if (!handAnimationKey) {
+      previousHandAnimationKeyRef.current = null;
+      setRollingHandKey(null);
+      return;
+    }
+
+    if (previousHandAnimationKeyRef.current === handAnimationKey) {
+      return;
+    }
+
+    previousHandAnimationKeyRef.current = handAnimationKey;
+    setRollingHandKey(handAnimationKey);
+
+    const timer = window.setTimeout(() => {
+      setRollingHandKey((currentKey) => (currentKey === handAnimationKey ? null : currentKey));
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [handAnimationKey]);
 
   async function createGame() {
     if (!supabase || !playerName.trim()) {
@@ -235,6 +286,9 @@ function App() {
       p_player_token: session.playerToken,
     });
     handleStateRpc(data as GameState | null, rpcError?.message ?? null);
+    if (!rpcError && data) {
+      setSelectedBidDraft(null);
+    }
     setPendingAction(null);
   }
 
@@ -301,6 +355,7 @@ function App() {
     clearSession();
     setSession(null);
     setState(null);
+    setSelectedBidDraft(null);
     setError(null);
   }
 
@@ -326,7 +381,7 @@ function App() {
         <section className="auth-panel">
           <div className="auth-heading">
             <h2>참가하려면 이름을 입력하세요</h2>
-            <p>이름을 정한 뒤 새 방을 만들거나 열린 방에 참가하세요.</p>
+            <p>이름을 정한 뒤 열린 방에 참가하거나 새 방을 만드세요.</p>
           </div>
 
           <label>
@@ -340,22 +395,6 @@ function App() {
           </label>
 
           <div className="entry-choice-grid">
-            <section className="entry-choice">
-              <div>
-                <span className="eyebrow">새 게임</span>
-                <h3>방 만들기</h3>
-                <p>내 이름으로 새 방을 열고 멤버를 기다립니다.</p>
-              </div>
-              <button
-                className="primary"
-                disabled={!playerName.trim() || pendingAction === 'create'}
-                onClick={createGame}
-              >
-                {pendingAction === 'create' ? <Loader2 className="spin" /> : <Plus />}
-                방 만들기
-              </button>
-            </section>
-
             <section className="entry-choice">
               <div className="room-picker-head">
                 <div>
@@ -399,6 +438,14 @@ function App() {
               >
                 {pendingAction === 'join' ? <Loader2 className="spin" /> : <LogIn />}
                 선택한 방 참가
+              </button>
+              <button
+                className="primary"
+                disabled={!playerName.trim() || pendingAction === 'create'}
+                onClick={createGame}
+              >
+                {pendingAction === 'create' ? <Loader2 className="spin" /> : <Plus />}
+                방 만들기
               </button>
             </section>
           </div>
@@ -474,10 +521,14 @@ function App() {
                   </p>
                 </div>
 
-                <div className="hand-row" aria-label="내 주사위">
-                  {state.own_hand.length > 0 ? (
-                    state.own_hand.map((value, index) => (
-                      <span className={value === 6 ? 'die wild' : 'die'} key={`${value}-${index}`}>
+                <div className={isRollingHand ? 'hand-row rolling' : 'hand-row'} aria-label="내 주사위">
+                  {sortedOwnHand.length > 0 ? (
+                    sortedOwnHand.map((value, index) => (
+                      <span
+                        className={value === 6 ? 'die wild' : 'die'}
+                        key={`${handAnimationKey ?? 'hand'}-${value}-${index}`}
+                        style={isRollingHand ? { animationDelay: `${index * 70}ms` } : undefined}
+                      >
                         <DieFace value={value} />
                       </span>
                     ))
@@ -490,8 +541,9 @@ function App() {
                   <BidMap
                     canBid={Boolean(canBid)}
                     options={bidOptions}
+                    resetKey={bidContextKey}
                     selectedRank={selectedRank}
-                    onSelect={setSelectedRank}
+                    onSelect={(rank) => setSelectedBidDraft({ rank, contextKey: bidContextKey })}
                   />
                   <button className="primary" disabled={!canBid || !selectedBid || pendingAction === 'bid'} onClick={placeBid}>
                     {pendingAction === 'bid' ? <Loader2 className="spin" /> : <Dice5 />}
@@ -632,15 +684,27 @@ function MyResultBanner({ state }: { state: GameState }) {
 function BidMap({
   canBid,
   options,
+  resetKey,
   selectedRank,
   onSelect,
 }: {
   canBid: boolean;
   options: BidOption[];
+  resetKey: string;
   selectedRank: number | null;
   onSelect: (rank: number) => void;
 }) {
   const selectedOption = options.find((option) => option.rank === selectedRank) ?? null;
+  const mapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      mapRef.current?.scrollTo({ left: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [resetKey]);
 
   return (
     <div className="bid-map-panel">
@@ -650,7 +714,7 @@ function BidMap({
           <strong>{selectedOption ? describeBid(selectedOption) : '선언할 칸을 선택하세요'}</strong>
         </div>
       </div>
-      <div className="bid-map" aria-label="선언 순서 맵">
+      <div className="bid-map" ref={mapRef} aria-label="선언 순서 맵">
         {options.length > 0 ? options.map((option) => {
           const isSelected = option.rank === selectedRank;
 
