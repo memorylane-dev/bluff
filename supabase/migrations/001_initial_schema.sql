@@ -380,6 +380,7 @@ declare
   v_player public.players;
   v_starter_player_id uuid;
   v_player_count integer;
+  v_starting_dice_count integer;
 begin
   v_player := public.assert_player(p_game_id, p_player_id, p_player_token);
 
@@ -407,6 +408,13 @@ begin
   if v_player_count < 2 then
     raise exception 'at least two players are required';
   end if;
+
+  v_starting_dice_count := floor(40::numeric / v_player_count)::integer;
+
+  update public.players
+     set dice_count = v_starting_dice_count,
+         is_eliminated = false
+   where game_id = p_game_id;
 
   select id
     into v_starter_player_id

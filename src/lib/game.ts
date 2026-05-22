@@ -112,7 +112,7 @@ export function describeBid(
   const quantity = bid.quantity;
   const face = bid.face;
   const isSpecialSix = 'isSpecialSix' in bid ? bid.isSpecialSix : bid.is_special_six;
-  return isSpecialSix ? `특수 6이 ${quantity}개` : `${face} 또는 6이 ${quantity}개`;
+  return isSpecialSix ? `별이 ${quantity}개` : `${face} 또는 별이 ${quantity}개`;
 }
 
 export function generateBidOptions(totalDice: number, currentRank = 0): BidOption[] {
@@ -141,7 +141,7 @@ export function generateBidOptions(totalDice: number, currentRank = 0): BidOptio
           face: 6,
           isSpecialSix: true,
           rank,
-          label: `특수 6 ${specialQuantity}개`,
+          label: `별 ${specialQuantity}개`,
         });
       }
     }

@@ -14,6 +14,12 @@ npm run dev
 
 `.env`에는 Supabase 프로젝트의 URL과 anon key를 넣습니다.
 
+## 룰 시뮬레이션
+
+```bash
+npm run simulate
+```
+
 ## Supabase 설정
 
 1. Supabase 프로젝트를 만든다.
@@ -35,6 +41,7 @@ npx vercel deploy --prod
 ## 구현 범위
 
 - 첫 라운드 시작자 랜덤
+- 시작 주사위는 최대 40개를 인원수로 나눈 몫만 사용
 - 일반 선언 `1~5`, `6`은 와일드
 - 특수 `6` 선언은 진짜 `6`만 계산
 - 블러프 결과 차이만큼 주사위 차감

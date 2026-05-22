@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Copy,
   Dice5,
   DoorOpen,
   Loader2,
@@ -8,6 +7,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Star,
   Swords,
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
@@ -50,7 +50,7 @@ function App() {
     return generateBidOptions(totalDice, currentRank);
   }, [state?.round?.current_bid?.rank, totalDice]);
 
-  const selectedBid = bidOptions.find((option) => option.rank === selectedRank) ?? bidOptions[0];
+  const selectedBid = bidOptions.find((option) => option.rank === selectedRank) ?? null;
   const me = state?.me ?? null;
   const currentBid = state?.round?.current_bid ?? null;
   const currentTurnPlayer = state?.players.find(
@@ -172,8 +172,8 @@ function App() {
   }, [activeRooms, selectedRoomCode]);
 
   useEffect(() => {
-    if (bidOptions.length > 0 && !bidOptions.some((option) => option.rank === selectedRank)) {
-      setSelectedRank(bidOptions[0].rank);
+    if (selectedRank && !bidOptions.some((option) => option.rank === selectedRank)) {
+      setSelectedRank(null);
     }
   }, [bidOptions, selectedRank]);
 
@@ -304,13 +304,6 @@ function App() {
     setError(null);
   }
 
-  async function copyCode() {
-    if (!session?.code) {
-      return;
-    }
-    await navigator.clipboard.writeText(session.code);
-  }
-
   if (!isSupabaseConfigured) {
     return <SetupScreen />;
   }
@@ -341,7 +334,7 @@ function App() {
             <input
               value={playerName}
               maxLength={18}
-              placeholder="예: minsu"
+              placeholder="예: 윤주킴"
               onChange={(event) => setPlayerName(event.target.value)}
             />
           </label>
@@ -420,11 +413,8 @@ function App() {
     <main className="shell game-shell">
       <header className="topbar">
         <div>
-          <span className="eyebrow">방 코드</span>
-          <button className="code-button" onClick={copyCode}>
-            {session.code}
-            <Copy size={16} />
-          </button>
+          <span className="eyebrow">게임</span>
+          <h1 className="game-title">Bluff</h1>
         </div>
         <div className="topbar-actions">
           <button onClick={() => refreshState('refresh')} disabled={pendingAction === 'refresh'}>
@@ -488,7 +478,7 @@ function App() {
                   {state.own_hand.length > 0 ? (
                     state.own_hand.map((value, index) => (
                       <span className={value === 6 ? 'die wild' : 'die'} key={`${value}-${index}`}>
-                        {value}
+                        <DieFace value={value} />
                       </span>
                     ))
                   ) : (
@@ -500,10 +490,10 @@ function App() {
                   <BidMap
                     canBid={Boolean(canBid)}
                     options={bidOptions}
-                    selectedRank={selectedBid?.rank ?? null}
+                    selectedRank={selectedRank}
                     onSelect={setSelectedRank}
                   />
-                  <button className="primary" disabled={!canBid || pendingAction === 'bid'} onClick={placeBid}>
+                  <button className="primary" disabled={!canBid || !selectedBid || pendingAction === 'bid'} onClick={placeBid}>
                     {pendingAction === 'bid' ? <Loader2 className="spin" /> : <Dice5 />}
                     선언
                   </button>
@@ -661,7 +651,7 @@ function BidMap({
         </div>
       </div>
       <div className="bid-map" aria-label="선언 순서 맵">
-        {options.length > 0 ? options.map((option, index) => {
+        {options.length > 0 ? options.map((option) => {
           const isSelected = option.rank === selectedRank;
 
           return (
@@ -678,8 +668,9 @@ function BidMap({
               onClick={() => onSelect(option.rank)}
               type="button"
             >
-              <span>{index + 1}</span>
-              <strong>{option.isSpecialSix ? '6' : option.face}</strong>
+              <strong>
+                <DieFace value={option.isSpecialSix ? 6 : option.face} />
+              </strong>
               <small>{option.quantity}개</small>
             </button>
           );
@@ -707,7 +698,7 @@ function ChallengeResult({ challenge }: { challenge: NonNullable<GameState['last
             <div>
               {hand.dice.map((value, index) => (
                 <span className={value === 6 ? 'mini-die wild' : 'mini-die'} key={`${hand.player_id}-${index}`}>
-                  {value}
+                  <DieFace value={value} />
                 </span>
               ))}
             </div>
@@ -715,6 +706,20 @@ function ChallengeResult({ challenge }: { challenge: NonNullable<GameState['last
         ))}
       </div>
     </section>
+  );
+}
+
+function DieFace({ value }: { value: number }) {
+  if (value === 6) {
+    return <Star aria-label="별" className="star-face" fill="currentColor" />;
+  }
+
+  return (
+    <span className={`dice-symbol face-${value}`} aria-label={`${value}`}>
+      {Array.from({ length: value }).map((_, index) => (
+        <span className="pip" key={index} />
+      ))}
+    </span>
   );
 }
 

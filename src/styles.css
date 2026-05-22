@@ -285,11 +285,9 @@ p {
   margin-bottom: 6px;
 }
 
-.code-button {
-  font-size: 1.25rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  color: #256b4f;
+.game-title {
+  font-size: 1.5rem;
+  line-height: 1;
 }
 
 .game-grid {
@@ -431,11 +429,110 @@ p {
   font-size: 1.35rem;
 }
 
+.die svg {
+  width: 25px;
+  height: 25px;
+}
+
+.dice-symbol {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+}
+
+.pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  align-self: center;
+  justify-self: center;
+}
+
+.face-1 .pip:nth-child(1) {
+  grid-area: 2 / 2;
+}
+
+.face-2 .pip:nth-child(1) {
+  grid-area: 1 / 1;
+}
+
+.face-2 .pip:nth-child(2) {
+  grid-area: 3 / 3;
+}
+
+.face-3 .pip:nth-child(1) {
+  grid-area: 1 / 1;
+}
+
+.face-3 .pip:nth-child(2) {
+  grid-area: 2 / 2;
+}
+
+.face-3 .pip:nth-child(3) {
+  grid-area: 3 / 3;
+}
+
+.face-4 .pip:nth-child(1) {
+  grid-area: 1 / 1;
+}
+
+.face-4 .pip:nth-child(2) {
+  grid-area: 1 / 3;
+}
+
+.face-4 .pip:nth-child(3) {
+  grid-area: 3 / 1;
+}
+
+.face-4 .pip:nth-child(4) {
+  grid-area: 3 / 3;
+}
+
+.face-5 .pip:nth-child(1) {
+  grid-area: 1 / 1;
+}
+
+.face-5 .pip:nth-child(2) {
+  grid-area: 1 / 3;
+}
+
+.face-5 .pip:nth-child(3) {
+  grid-area: 2 / 2;
+}
+
+.face-5 .pip:nth-child(4) {
+  grid-area: 3 / 1;
+}
+
+.face-5 .pip:nth-child(5) {
+  grid-area: 3 / 3;
+}
+
 .mini-die {
   width: 30px;
   height: 30px;
   border-radius: 6px;
   font-size: 0.92rem;
+}
+
+.mini-die svg {
+  width: 16px;
+  height: 16px;
+}
+
+.mini-die .dice-symbol {
+  width: 18px;
+  height: 18px;
+  gap: 1px;
+}
+
+.mini-die .pip {
+  width: 4px;
+  height: 4px;
 }
 
 .die.wild,
@@ -489,7 +586,6 @@ p {
   scroll-snap-align: start;
 }
 
-.bid-tile span,
 .bid-tile small {
   font-size: 0.72rem;
   font-weight: 900;
@@ -497,8 +593,25 @@ p {
 }
 
 .bid-tile strong {
+  display: grid;
+  place-items: center;
   font-size: 1.5rem;
   line-height: 1;
+}
+
+.bid-tile strong svg {
+  width: 22px;
+  height: 22px;
+}
+
+.bid-tile .dice-symbol {
+  width: 25px;
+  height: 25px;
+}
+
+.bid-tile .pip {
+  width: 5px;
+  height: 5px;
 }
 
 .bid-tile.special {
@@ -513,10 +626,24 @@ p {
 }
 
 .bid-tile.selected {
-  transform: translateY(-2px);
+  border-color: #18211d;
+  outline: 4px solid #18211d;
+  outline-offset: -4px;
+  transform: translateY(-4px) scale(1.04);
   box-shadow:
-    0 8px 18px rgba(37, 107, 79, 0.22),
+    0 12px 24px rgba(24, 33, 29, 0.28),
     inset 0 -4px 0 rgba(24, 33, 29, 0.12);
+}
+
+.bid-tile.selected::after {
+  content: "선택";
+  display: block;
+  border-radius: 999px;
+  background: #18211d;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 900;
+  padding: 2px 6px;
 }
 
 .bid-tile:disabled {
