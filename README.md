@@ -2,7 +2,7 @@
 
 `누구도 괜찮지 않은 밤` 멤버들이 모여 가볍게 할 수 있는 블러프 주사위 게임입니다.
 
-대표 이미지는 `public/meeting-cover.svg`에 있습니다.
+대표 이미지는 `public/meeting-title.png`, `public/meeting-interview.png`에 있습니다.
 
 ## 로컬 실행
 

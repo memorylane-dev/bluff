@@ -251,11 +251,10 @@ function App() {
           </div>
           <h1>Bluff</h1>
           <p>누구도 괜찮지 않은 밤 멤버들이 모여 가볍게 할 수 있는 블러프 주사위 게임입니다.</p>
-          <img
-            className="meeting-cover"
-            src="/meeting-cover.svg"
-            alt="누구도 괜찮지 않은 밤 대표 이미지"
-          />
+          <div className="meeting-cover" aria-label="누구도 괜찮지 않은 밤 대표 이미지">
+            <img src="/meeting-title.png" alt="누구도 괜찮지 않은 밤" />
+            <img src="/meeting-interview.png" alt="김윤주 님 인터뷰 소개" />
+          </div>
         </section>
 
         <section className="auth-panel">

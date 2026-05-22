@@ -131,11 +131,18 @@ p {
 
 .meeting-cover {
   width: min(540px, 100%);
-  aspect-ratio: 496 / 459;
-  object-fit: cover;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
   border: 1px solid #20231f;
   border-radius: 8px;
   box-shadow: 0 18px 48px rgba(21, 24, 22, 0.16);
+}
+
+.meeting-cover img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .auth-panel,
@@ -485,7 +492,11 @@ p {
   .meeting-cover {
     width: 100%;
     height: min(160px, 45vw);
-    aspect-ratio: auto;
+    grid-template-rows: 42% 58%;
+  }
+
+  .meeting-cover img {
+    height: 100%;
   }
 
   .topbar,
