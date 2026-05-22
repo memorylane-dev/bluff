@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import {
+  ActiveRoom,
   BidOption,
   GameState,
   RpcSessionPayload,
@@ -24,13 +25,14 @@ import {
   saveSession,
 } from './lib/game';
 
-type PendingAction = 'create' | 'join' | 'start' | 'bid' | 'challenge' | 'refresh' | null;
+type PendingAction = 'create' | 'join' | 'rooms' | 'start' | 'bid' | 'challenge' | 'refresh' | null;
 
 function App() {
   const [session, setSession] = useState<Session | null>(() => loadSession());
   const [state, setState] = useState<GameState | null>(null);
+  const [activeRooms, setActiveRooms] = useState<ActiveRoom[]>([]);
   const [playerName, setPlayerName] = useState('');
-  const [joinCode, setJoinCode] = useState('');
+  const [selectedRoomCode, setSelectedRoomCode] = useState<string | null>(null);
   const [selectedRank, setSelectedRank] = useState<number | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +50,11 @@ function App() {
     return generateBidOptions(totalDice, currentRank);
   }, [state?.round?.current_bid?.rank, totalDice]);
 
+  const bidTrack = useMemo(() => generateBidOptions(totalDice, 0), [totalDice]);
   const selectedBid = bidOptions.find((option) => option.rank === selectedRank) ?? bidOptions[0];
   const me = state?.me ?? null;
   const currentBid = state?.round?.current_bid ?? null;
+  const currentBidRank = currentBid?.rank ?? 0;
   const currentTurnPlayer = state?.players.find(
     (player) => player.id === state.game.current_turn_player_id,
   );
@@ -100,6 +104,32 @@ function App() {
     [session],
   );
 
+  const loadOpenGames = useCallback(
+    async (action: PendingAction = 'rooms') => {
+      if (!supabase || session) {
+        return;
+      }
+
+      if (action) {
+        setPendingAction(action);
+      }
+
+      const { data, error: rpcError } = await supabase.rpc('list_open_games');
+
+      if (rpcError) {
+        setError(rpcError.message);
+      } else {
+        setActiveRooms((data as ActiveRoom[] | null) ?? []);
+        setError(null);
+      }
+
+      if (action) {
+        setPendingAction(null);
+      }
+    },
+    [session],
+  );
+
   useEffect(() => {
     if (!session) {
       setState(null);
@@ -113,6 +143,30 @@ function App() {
 
     return () => window.clearInterval(interval);
   }, [refreshState, session]);
+
+  useEffect(() => {
+    if (session || !isSupabaseConfigured) {
+      return;
+    }
+
+    void loadOpenGames('rooms');
+    const interval = window.setInterval(() => {
+      void loadOpenGames(null);
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [loadOpenGames, session]);
+
+  useEffect(() => {
+    if (activeRooms.length === 0) {
+      setSelectedRoomCode(null);
+      return;
+    }
+
+    if (!selectedRoomCode || !activeRooms.some((room) => room.code === selectedRoomCode)) {
+      setSelectedRoomCode(activeRooms[0].code);
+    }
+  }, [activeRooms, selectedRoomCode]);
 
   useEffect(() => {
     if (bidOptions.length > 0 && !bidOptions.some((option) => option.rank === selectedRank)) {
@@ -135,13 +189,13 @@ function App() {
   }
 
   async function joinGame() {
-    if (!supabase || !playerName.trim() || !joinCode.trim()) {
+    if (!supabase || !playerName.trim() || !selectedRoomCode) {
       return;
     }
 
     setPendingAction('join');
     const { data, error: rpcError } = await supabase.rpc('join_game', {
-      p_code: joinCode.trim().toUpperCase(),
+      p_code: selectedRoomCode,
       p_player_name: playerName.trim(),
     });
 
@@ -279,22 +333,46 @@ function App() {
             </button>
           </div>
 
-          <div className="join-row">
-            <label>
-              방 코드
-              <input
-                value={joinCode}
-                maxLength={8}
-                placeholder="ABC123"
-                onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-              />
-            </label>
+          <div className="room-picker">
+            <div className="room-picker-head">
+              <strong>활성화된 방</strong>
+              <button
+                className="ghost compact"
+                disabled={pendingAction === 'rooms'}
+                onClick={() => loadOpenGames('rooms')}
+              >
+                {pendingAction === 'rooms' ? <Loader2 className="spin" /> : <RefreshCw />}
+                새로고침
+              </button>
+            </div>
+
+            <div className="room-list">
+              {activeRooms.length > 0 ? (
+                activeRooms.map((room) => (
+                  <button
+                    className={room.code === selectedRoomCode ? 'room-option selected' : 'room-option'}
+                    key={room.game_id}
+                    onClick={() => setSelectedRoomCode(room.code)}
+                  >
+                    <span>
+                      <strong>{room.host_player_name}님의 방</strong>
+                      <small>
+                        {room.player_count}/{room.max_players}명 대기
+                      </small>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className="empty-room">현재 대기 중인 방이 없습니다.</p>
+              )}
+            </div>
+
             <button
-              disabled={!playerName.trim() || !joinCode.trim() || pendingAction === 'join'}
+              disabled={!playerName.trim() || !selectedRoomCode || pendingAction === 'join'}
               onClick={joinGame}
             >
               {pendingAction === 'join' ? <Loader2 className="spin" /> : <LogIn />}
-              참가
+              선택한 방 참가
             </button>
           </div>
 
@@ -383,20 +461,13 @@ function App() {
                 </div>
 
                 <div className="action-panel">
-                  <label>
-                    다음 선언
-                    <select
-                      value={selectedBid?.rank ?? ''}
-                      disabled={!canBid}
-                      onChange={(event) => setSelectedRank(Number(event.target.value))}
-                    >
-                      {bidOptions.map((option) => (
-                        <option value={option.rank} key={option.rank}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <BidMap
+                    canBid={Boolean(canBid)}
+                    currentRank={currentBidRank}
+                    options={bidTrack}
+                    selectedRank={selectedBid?.rank ?? null}
+                    onSelect={setSelectedRank}
+                  />
                   <button className="primary" disabled={!canBid || pendingAction === 'bid'} onClick={placeBid}>
                     {pendingAction === 'bid' ? <Loader2 className="spin" /> : <Dice5 />}
                     선언
@@ -478,6 +549,63 @@ function SetupScreen() {
 function StatusBadge({ status }: { status: GameState['game']['status'] }) {
   const label = status === 'waiting' ? '대기' : status === 'playing' ? '진행 중' : '종료';
   return <span className={`status ${status}`}>{label}</span>;
+}
+
+function BidMap({
+  canBid,
+  currentRank,
+  options,
+  selectedRank,
+  onSelect,
+}: {
+  canBid: boolean;
+  currentRank: number;
+  options: BidOption[];
+  selectedRank: number | null;
+  onSelect: (rank: number) => void;
+}) {
+  const selectedOption = options.find((option) => option.rank === selectedRank) ?? null;
+
+  return (
+    <div className="bid-map-panel">
+      <div className="bid-map-head">
+        <div>
+          <span className="eyebrow">선언 맵</span>
+          <strong>{selectedOption ? describeBid(selectedOption) : '선언할 칸을 선택하세요'}</strong>
+        </div>
+      </div>
+      <div className="bid-map" aria-label="선언 순서 맵">
+        {options.map((option, index) => {
+          const isCurrent = option.rank === currentRank;
+          const isPast = option.rank < currentRank;
+          const isSelected = option.rank === selectedRank;
+          const isAvailable = canBid && option.rank > currentRank;
+
+          return (
+            <button
+              className={[
+                'bid-tile',
+                option.isSpecialSix ? 'special' : 'normal',
+                isCurrent ? 'current' : '',
+                isPast ? 'past' : '',
+                isSelected ? 'selected' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              disabled={!isAvailable}
+              key={option.rank}
+              onClick={() => onSelect(option.rank)}
+              type="button"
+            >
+              <span>{index + 1}</span>
+              <strong>{option.isSpecialSix ? '6' : option.face}</strong>
+              <small>{option.quantity}개</small>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function ChallengeResult({ challenge }: { challenge: NonNullable<GameState['last_challenge']> }) {

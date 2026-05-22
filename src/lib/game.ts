@@ -82,6 +82,15 @@ export type RpcSessionPayload = {
   player_token: string;
 };
 
+export type ActiveRoom = {
+  game_id: string;
+  code: string;
+  host_player_name: string;
+  player_count: number;
+  max_players: number;
+  created_at: string;
+};
+
 export type BidOption = {
   quantity: number;
   face: number;

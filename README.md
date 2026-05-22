@@ -17,7 +17,7 @@ npm run dev
 ## Supabase 설정
 
 1. Supabase 프로젝트를 만든다.
-2. SQL editor에서 `supabase/migrations/001_initial_schema.sql`을 실행한다.
+2. SQL editor에서 `supabase/migrations` 안의 SQL 파일을 번호 순서대로 실행한다.
 3. Vercel 프로젝트 환경 변수에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`를 등록한다.
 
 ## 배포
