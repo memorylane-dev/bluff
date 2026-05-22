@@ -688,6 +688,22 @@ function MyResultBanner({ state }: { state: GameState }) {
     );
   }
 
+  if (state.me.is_eliminated) {
+    const challenge = state.last_challenge;
+    const didJustLose = challenge?.loser_player_id === state.me.id;
+
+    return (
+      <section className="result-banner lose">
+        <strong>
+          {didJustLose
+            ? `지난 정산에서 내 주사위 ${challenge.penalty}개를 잃고 탈락했습니다`
+            : '나는 탈락했습니다'}
+        </strong>
+        <span>남은 플레이어들이 게임을 진행 중입니다.</span>
+      </section>
+    );
+  }
+
   if (!state.last_challenge) {
     return null;
   }
