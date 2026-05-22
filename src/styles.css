@@ -141,8 +141,8 @@ p {
 
 .meeting-cover img {
   width: 100%;
+  height: auto;
   display: block;
-  object-fit: cover;
 }
 
 .auth-panel,
@@ -491,12 +491,6 @@ p {
 
   .meeting-cover {
     width: 100%;
-    height: min(160px, 45vw);
-    grid-template-rows: 42% 58%;
-  }
-
-  .meeting-cover img {
-    height: 100%;
   }
 
   .topbar,
