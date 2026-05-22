@@ -659,7 +659,7 @@ function MyResultBanner({ state }: { state: GameState }) {
   if (challenge.outcome === 'exact') {
     return (
       <section className="result-banner exact">
-        <strong>이번 블러프는 정확히 맞았습니다</strong>
+        <strong>지난 블러프는 정확히 맞았습니다</strong>
         <span>아무도 주사위를 잃지 않았습니다.</span>
       </section>
     );
@@ -669,7 +669,9 @@ function MyResultBanner({ state }: { state: GameState }) {
 
   return (
     <section className={didLoseDice ? 'result-banner lose' : 'result-banner neutral'}>
-      <strong>{didLoseDice ? `내 주사위 ${challenge.penalty}개를 잃었습니다` : '이번 정산에서 살아남았습니다'}</strong>
+      <strong>
+        {didLoseDice ? `지난 정산에서 내 주사위 ${challenge.penalty}개를 잃었습니다` : '지난 정산에서 살아남았습니다'}
+      </strong>
       <span>
         {didLoseDice
           ? challenge.outcome === 'success'
