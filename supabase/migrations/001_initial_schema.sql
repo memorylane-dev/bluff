@@ -452,6 +452,8 @@ declare
   v_rank integer;
   v_bid_id uuid;
   v_total_dice integer;
+  v_alive_count integer;
+  v_track_dice integer;
   v_next_player_id uuid;
 begin
   v_player := public.assert_player(p_game_id, p_player_id, p_player_token);
@@ -493,19 +495,33 @@ begin
     end if;
   end if;
 
-  select coalesce(sum(dice_count), 0)
-    into v_total_dice
+  select coalesce(sum(dice_count), 0)::integer,
+         count(*)::integer
+    into v_total_dice,
+         v_alive_count
     from public.players
    where game_id = p_game_id
      and is_eliminated = false
      and dice_count > 0;
 
+  v_track_dice := v_total_dice + least(
+    greatest(
+      case
+        when v_alive_count <= 3 then 0
+        when v_alive_count <= 6 then (v_alive_count - 3) * 2
+        else 6 + (v_alive_count - 6) * 2
+      end,
+      0
+    ),
+    16
+  );
+
   if p_is_special_six then
-    if p_quantity * 2 > v_total_dice then
+    if p_quantity * 2 > v_track_dice then
       raise exception 'special six quantity is above the current track';
     end if;
-  elsif p_quantity > v_total_dice then
-    raise exception 'quantity is above total dice';
+  elsif p_quantity > v_track_dice then
+    raise exception 'quantity is above the current track';
   end if;
 
   insert into public.bids (game_id, round_id, player_id, quantity, face, is_special_six, rank)

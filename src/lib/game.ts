@@ -115,10 +115,26 @@ export function describeBid(
   return isSpecialSix ? `별이 ${quantity}개` : `${face} 또는 별이 ${quantity}개`;
 }
 
-export function generateBidOptions(totalDice: number, currentRank = 0): BidOption[] {
-  const options: BidOption[] = [];
+export function bidTrackMax(totalDice: number, alivePlayerCount: number) {
+  if (totalDice <= 0) {
+    return 0;
+  }
 
-  for (let quantity = 1; quantity <= totalDice; quantity += 1) {
+  const playerBonus =
+    alivePlayerCount <= 3
+      ? 0
+      : alivePlayerCount <= 6
+        ? (alivePlayerCount - 3) * 2
+        : 6 + (alivePlayerCount - 6) * 2;
+
+  return totalDice + Math.min(Math.max(playerBonus, 0), 16);
+}
+
+export function generateBidOptions(totalDice: number, currentRank = 0, alivePlayerCount = 0): BidOption[] {
+  const options: BidOption[] = [];
+  const trackMax = bidTrackMax(totalDice, alivePlayerCount);
+
+  for (let quantity = 1; quantity <= trackMax; quantity += 1) {
     for (const face of NORMAL_FACES) {
       const rank = bidRank(quantity, face, false);
       if (rank > currentRank) {

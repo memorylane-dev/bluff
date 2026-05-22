@@ -42,19 +42,24 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const previousBidContextKeyRef = useRef<string | null>(null);
   const previousHandAnimationKeyRef = useRef<string | null>(null);
+  const previousChallengeIdRef = useRef<string | null>(null);
+  const didInitializeChallengeScrollRef = useRef(false);
+  const roundHeaderRef = useRef<HTMLDivElement | null>(null);
 
-  const totalDice = useMemo(
-    () =>
-      state?.players
-        .filter((player) => !player.is_eliminated)
-        .reduce((sum, player) => sum + player.dice_count, 0) ?? 0,
+  const alivePlayers = useMemo(
+    () => state?.players.filter((player) => !player.is_eliminated && player.dice_count > 0) ?? [],
     [state?.players],
+  );
+  const alivePlayerCount = alivePlayers.length;
+  const totalDice = useMemo(
+    () => alivePlayers.reduce((sum, player) => sum + player.dice_count, 0),
+    [alivePlayers],
   );
 
   const bidOptions = useMemo(() => {
     const currentRank = state?.round?.current_bid?.rank ?? 0;
-    return generateBidOptions(totalDice, currentRank);
-  }, [state?.round?.current_bid?.rank, totalDice]);
+    return generateBidOptions(totalDice, currentRank, alivePlayerCount);
+  }, [alivePlayerCount, state?.round?.current_bid?.rank, totalDice]);
 
   const sortedOwnHand = useMemo(
     () => [...(state?.own_hand ?? [])].sort((a, b) => a - b),
@@ -62,9 +67,10 @@ function App() {
   );
   const me = state?.me ?? null;
   const currentBid = state?.round?.current_bid ?? null;
-  const bidContextKey = `${state?.round?.id ?? 'no-round'}:${currentBid?.rank ?? 0}:${totalDice}`;
+  const bidContextKey = `${state?.round?.id ?? 'no-round'}:${currentBid?.rank ?? 0}:${totalDice}:${alivePlayerCount}`;
   const selectedRank = selectedBidDraft?.contextKey === bidContextKey ? selectedBidDraft.rank : null;
   const selectedBid = selectedRank !== null ? bidOptions.find((option) => option.rank === selectedRank) ?? null : null;
+  const lastChallengeId = state?.last_challenge?.id ?? null;
   const handAnimationKey =
     state?.game.status === 'playing' && state.round && sortedOwnHand.length > 0
       ? `${state.round.id}:${sortedOwnHand.join(',')}`
@@ -166,6 +172,11 @@ function App() {
   }, [refreshState, session]);
 
   useEffect(() => {
+    didInitializeChallengeScrollRef.current = false;
+    previousChallengeIdRef.current = null;
+  }, [session?.gameId]);
+
+  useEffect(() => {
     if (session || !isSupabaseConfigured) {
       return;
     }
@@ -227,6 +238,33 @@ function App() {
 
     return () => window.clearTimeout(timer);
   }, [handAnimationKey]);
+
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+
+    if (!didInitializeChallengeScrollRef.current) {
+      didInitializeChallengeScrollRef.current = true;
+      previousChallengeIdRef.current = lastChallengeId;
+      return;
+    }
+
+    if (lastChallengeId && lastChallengeId !== previousChallengeIdRef.current) {
+      const frame = window.requestAnimationFrame(() => {
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        roundHeaderRef.current?.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'start',
+        });
+      });
+
+      previousChallengeIdRef.current = lastChallengeId;
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    previousChallengeIdRef.current = lastChallengeId;
+  }, [lastChallengeId, state]);
 
   async function createGame() {
     if (!supabase || !playerName.trim()) {
@@ -485,7 +523,7 @@ function App() {
       ) : (
         <div className="game-grid">
           <section className="table-panel">
-            <div className="round-header">
+            <div className="round-header" ref={roundHeaderRef}>
               <div>
                 <span className="eyebrow">상태</span>
                 <h2>{state.game.status === 'waiting' ? '대기실' : `라운드 ${state.round?.round_number ?? '-'}`}</h2>
