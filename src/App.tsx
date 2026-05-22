@@ -249,8 +249,8 @@ function App() {
           <div className="brand-mark">
             <Dice5 size={34} />
           </div>
-          <h1>Bluff Dice</h1>
-          <p>최대 10명이 가볍게 테스트할 수 있는 실시간 블러프 주사위 게임입니다.</p>
+          <h1>Bluff</h1>
+          <p>누구도 괜찮지 않은 밤 멤버들이 모여 가볍게 할 수 있는 블러프 주사위 게임입니다.</p>
         </section>
 
         <section className="auth-panel">
