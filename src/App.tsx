@@ -91,6 +91,11 @@ function App() {
       });
 
       if (rpcError) {
+        if (isStaleSessionError(rpcError.message)) {
+          leaveLocalSession();
+          return;
+        }
+
         setError(rpcError.message);
       } else {
         setState(data as GameState);
@@ -574,6 +579,11 @@ function SetupScreen() {
       </section>
     </main>
   );
+}
+
+function isStaleSessionError(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes('game not found') || normalized.includes('invalid player session');
 }
 
 function StatusBadge({ status }: { status: GameState['game']['status'] }) {
