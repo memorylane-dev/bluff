@@ -535,7 +535,7 @@ function App() {
 
             {state.game.status === 'finished' ? (
               <div className="finish-banner">
-                <h3>{winner?.name ?? '승자'} 승리</h3>
+                <h3>{winner ? `${winner.name} 승리` : '방 종료'}</h3>
                 <p>새 게임은 첫 화면에서 다시 만들 수 있습니다.</p>
               </div>
             ) : null}
@@ -677,6 +677,15 @@ function MyResultBanner({ state }: { state: GameState }) {
   }
 
   if (state.game.status === 'finished') {
+    if (!state.game.winner_player_id) {
+      return (
+        <section className="result-banner neutral">
+          <strong>방이 종료되었습니다</strong>
+          <span>승자 없이 게임이 끝났습니다.</span>
+        </section>
+      );
+    }
+
     const didWin = state.game.winner_player_id === state.me.id;
     const winner = state.players.find((player) => player.id === state.game.winner_player_id);
 

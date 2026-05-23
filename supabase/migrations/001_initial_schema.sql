@@ -9,6 +9,7 @@ create table public.games (
   current_turn_player_id uuid,
   winner_player_id uuid,
   max_players integer not null default 10 check (max_players between 2 and 10),
+  last_activity_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -89,6 +90,7 @@ create index players_game_id_idx on public.players(game_id);
 create index rounds_game_id_idx on public.rounds(game_id);
 create index bids_round_id_created_at_idx on public.bids(round_id, created_at desc);
 create index challenges_game_id_created_at_idx on public.challenges(game_id, created_at desc);
+create index games_status_last_activity_idx on public.games(status, last_activity_at);
 
 alter table public.games enable row level security;
 alter table public.players enable row level security;
@@ -111,6 +113,81 @@ drop trigger if exists games_touch_updated_at on public.games;
 create trigger games_touch_updated_at
 before update on public.games
 for each row execute function public.touch_updated_at();
+
+create or replace function public.expire_inactive_games()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_expired_ids uuid[];
+begin
+  with expired as (
+    update public.games
+       set status = 'finished',
+           current_turn_player_id = null,
+           winner_player_id = null
+     where status <> 'finished'
+       and last_activity_at < now() - interval '30 minutes'
+    returning id
+  )
+  select coalesce(array_agg(id), '{}'::uuid[])
+    into v_expired_ids
+    from expired;
+
+  update public.rounds
+     set status = 'resolved',
+         resolved_at = coalesce(resolved_at, now())
+   where status = 'active'
+     and game_id = any(coalesce(v_expired_ids, '{}'::uuid[]));
+
+  return coalesce(array_length(v_expired_ids, 1), 0);
+end;
+$$;
+
+create or replace function public.touch_game_activity_from_child()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_game_id uuid;
+begin
+  if tg_op = 'DELETE' then
+    v_game_id := old.game_id;
+  else
+    v_game_id := new.game_id;
+  end if;
+
+  update public.games
+     set last_activity_at = now()
+   where id = v_game_id
+     and status <> 'finished';
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists players_touch_game_activity on public.players;
+create trigger players_touch_game_activity
+after insert or update or delete on public.players
+for each row execute function public.touch_game_activity_from_child();
+
+drop trigger if exists bids_touch_game_activity on public.bids;
+create trigger bids_touch_game_activity
+after insert on public.bids
+for each row execute function public.touch_game_activity_from_child();
+
+drop trigger if exists challenges_touch_game_activity on public.challenges;
+create trigger challenges_touch_game_activity
+after insert on public.challenges
+for each row execute function public.touch_game_activity_from_child();
 
 create or replace function public.generate_game_code()
 returns text
@@ -182,6 +259,8 @@ as $$
 declare
   v_player public.players;
 begin
+  perform public.expire_inactive_games();
+
   select *
     into v_player
     from public.players
@@ -260,7 +339,8 @@ begin
   update public.games
      set status = 'playing',
          current_round_id = v_round_id,
-         current_turn_player_id = p_starter_player_id
+         current_turn_player_id = p_starter_player_id,
+         last_activity_at = now()
    where id = p_game_id;
 
   return v_round_id;
@@ -278,6 +358,8 @@ declare
   v_code text;
   v_player public.players;
 begin
+  perform public.expire_inactive_games();
+
   if nullif(trim(p_player_name), '') is null then
     raise exception 'player name is required';
   end if;
@@ -320,6 +402,8 @@ declare
   v_player_count integer;
   v_seat_index integer;
 begin
+  perform public.expire_inactive_games();
+
   if nullif(trim(p_player_name), '') is null then
     raise exception 'player name is required';
   end if;
@@ -356,6 +440,10 @@ begin
   values (v_game.id, left(trim(p_player_name), 18), v_seat_index)
   returning * into v_player;
 
+  update public.games
+     set last_activity_at = now()
+   where id = v_game.id;
+
   return jsonb_build_object(
     'game_id', v_game.id,
     'code', v_game.code,
@@ -382,6 +470,8 @@ declare
   v_player_count integer;
   v_starting_dice_count integer;
 begin
+  perform public.expire_inactive_games();
+
   v_player := public.assert_player(p_game_id, p_player_id, p_player_token);
 
   select *
@@ -456,6 +546,8 @@ declare
   v_track_dice integer;
   v_next_player_id uuid;
 begin
+  perform public.expire_inactive_games();
+
   v_player := public.assert_player(p_game_id, p_player_id, p_player_token);
 
   select *
@@ -535,7 +627,8 @@ begin
   v_next_player_id := public.next_alive_player_id(p_game_id, v_player.seat_index);
 
   update public.games
-     set current_turn_player_id = v_next_player_id
+     set current_turn_player_id = v_next_player_id,
+         last_activity_at = now()
    where id = p_game_id;
 
   return public.app_state(p_game_id, p_player_id, p_player_token);
@@ -568,6 +661,8 @@ declare
   v_next_starter_player_id uuid;
   v_revealed_hands jsonb;
 begin
+  perform public.expire_inactive_games();
+
   v_player := public.assert_player(p_game_id, p_player_id, p_player_token);
 
   select *
@@ -710,7 +805,8 @@ begin
     update public.games
        set status = 'finished',
            current_turn_player_id = null,
-           winner_player_id = v_winner_player_id
+           winner_player_id = v_winner_player_id,
+           last_activity_at = now()
      where id = p_game_id;
 
     return public.app_state(p_game_id, p_player_id, p_player_token);
@@ -782,6 +878,8 @@ declare
   v_last_challenge jsonb;
   v_own_hand smallint[] := '{}'::smallint[];
 begin
+  perform public.expire_inactive_games();
+
   select *
     into v_game
     from public.games

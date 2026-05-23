@@ -1,3 +1,5 @@
+begin;
+
 truncate table
   public.challenges,
   public.bids,
@@ -7,7 +9,11 @@ truncate table
   public.games
 restart identity cascade;
 
+commit;
+
 select
+  'reset complete' as status,
+  now() as reset_at,
   (select count(*) from public.games) as games,
   (select count(*) from public.players) as players,
   (select count(*) from public.rounds) as rounds,
