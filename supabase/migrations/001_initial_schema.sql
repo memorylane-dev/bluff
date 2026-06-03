@@ -8,7 +8,7 @@ create table public.games (
   current_round_id uuid,
   current_turn_player_id uuid,
   winner_player_id uuid,
-  max_players integer not null default 10 check (max_players between 2 and 10),
+  max_players integer not null default 20 check (max_players between 2 and 20),
   last_activity_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

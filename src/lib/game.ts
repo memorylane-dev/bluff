@@ -100,6 +100,7 @@ export type BidOption = {
 };
 
 export const SESSION_STORAGE_KEY = 'bluff.session.v1';
+export const MAX_PLAYERS = 20;
 export const NORMAL_FACES = [1, 2, 3, 4, 5] as const;
 
 export function bidRank(quantity: number, face: number, isSpecialSix: boolean) {

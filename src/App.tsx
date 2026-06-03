@@ -15,6 +15,7 @@ import {
   ActiveRoom,
   BidOption,
   GameState,
+  MAX_PLAYERS,
   RpcSessionPayload,
   Session,
   clearSession,
@@ -419,7 +420,7 @@ function App() {
         <section className="auth-panel">
           <div className="auth-heading">
             <h2>참가하려면 이름을 입력하세요</h2>
-            <p>이름을 정한 뒤 열린 방에 참가하거나 새 방을 만드세요.</p>
+            <p>이름을 정한 뒤 열린 방에 참가하세요. 새 방 정원은 최대 {MAX_PLAYERS}명입니다.</p>
           </div>
 
           <label>
@@ -542,7 +543,7 @@ function App() {
 
             {state.game.status === 'waiting' ? (
               <div className="waiting-box">
-                <p>2명 이상 모이면 방장이 시작할 수 있습니다.</p>
+                <p>2명 이상이면 방장이 시작할 수 있습니다. 정원은 최대 {MAX_PLAYERS}명입니다.</p>
                 <button className="primary" disabled={!canStart || pendingAction === 'start'} onClick={startGame}>
                   {pendingAction === 'start' ? <Loader2 className="spin" /> : <Play />}
                   게임 시작
